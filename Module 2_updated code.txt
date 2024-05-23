@@ -1,0 +1,125 @@
+Dim QtrOpenPrice, QtrClosePrice, QtrChange, QtrPerChange As Double
+Dim curTicker, GrtInc, GrtDec, GrtVols  As String
+Dim FirstDataRow, TotalRows, Idx As Long
+Dim TotalStkVols As LongLong
+Dim ResultRowIdx As Integer
+   
+Sub Init()
+    Dim WS_Count, I As Integer
+   
+    ' Set WS_Count equal to the number of worksheets in the active workbook.
+    WS_Count = ActiveWorkbook.Worksheets.Count
+    For I = 1 To WS_Count
+        ActiveWorkbook.Worksheets(I).Activate
+        Call AddHeaders
+        Call Iterate
+    Next I
+   
+End Sub
+
+Sub Iterate()
+    FirstDataRow = 2
+    QtrChange = 0
+    PercentChange = 0
+    TotalStkVols = 0
+    QtrChange = 0
+    TotalRows = Cells(Rows.Count, 1).End(xlUp).Row - 1
+    GrtVols = "0"
+    GrtDec = "0"
+    GrtInc = "0"
+    Debug.Print "Total Rows : " & TotalRows
+   
+    'Fetching First Ticker
+    curTicker = Cells(FirstDataRow, 1)
+    QtrOpenPrice = Cells(FirstDataRow, 3)
+   
+    For Idx = 2 To TotalRows
+   
+        'New Ticker Encountered here, so add into a row
+        If curTicker <> Cells(Idx, 1) Then
+            Call AddTickerRow
+        End If
+       
+        TotalStkVols = TotalStkVols + Cells(Idx, 7)
+        QtrClosePrice = Cells(Idx, 6)
+       
+        'Re-run logics only if last row
+        If Idx = TotalRows Then
+            Call AddTickerRow
+            Cells(2, 16) = Split(GrtInc, "~")(1)
+            Cells(2, 17) = Split(GrtInc, "~")(0) & "%"
+            Cells(3, 16) = Split(GrtDec, "~")(1)
+            Cells(3, 17) = Split(GrtDec, "~")(0) & "%"
+            Cells(4, 16) = Split(GrtVols, "~")(1)
+            Cells(4, 17) = Split(GrtVols, "~")(0)
+        End If
+       
+    Next Idx
+   
+    Debug.Print GrtInc
+    Debug.Print GrtDec
+    Debug.Print GrtVols
+End Sub
+
+Sub AddTickerRow()
+
+    QtrChange = CDec(QtrClosePrice) - CDec(QtrOpenPrice)
+    If QtrOpenPrice = 0 Then
+        QtrPerChange = CDec((QtrChange / 1) * 100)
+    Else
+        QtrPerChange = CDec((QtrChange / QtrOpenPrice) * 100)
+    End If
+   
+    Debug.Print "Ticker has Changed ~" & curTicker & "~" & QtrChange & "~" & QtrPerChange & "%~" & CStr(TotalStkVols)
+   
+    'Add Data Row into Result Section
+    ResultRowIdx = ResultRowIdx + 1
+    Cells(ResultRowIdx, 9) = curTicker
+    Cells(ResultRowIdx, 10) = QtrChange
+    Cells(ResultRowIdx, 11) = QtrPerChange & "%"
+    Cells(ResultRowIdx, 12) = CStr(TotalStkVols)
+   
+    'Changing the bgColor of QtrChange cell
+    If QtrChange < 0 Then
+        Range("J" & ResultRowIdx).Interior.Color = RGB(255, 0, 0)
+    Else
+        Range("J" & ResultRowIdx).Interior.Color = RGB(0, 255, 0)
+    End If
+   
+    ' Finding & updating highest / lowest data Qtr changes
+    If (CDec(Split(GrtInc, "~")(0)) < QtrPerChange) Then
+        GrtInc = QtrPerChange & "~" & curTicker
+    End If
+   
+    If (CDec(Split(GrtDec, "~")(0)) > QtrPerChange) Then
+        GrtDec = QtrPerChange & "~" & curTicker
+    End If
+   
+    If (CDec(Split(GrtVols, "~")(0)) < TotalStkVols) Then
+        GrtVols = TotalStkVols & "~" & curTicker
+    End If
+   
+    'Rest the variables
+    TotalStkVols = 0
+    QtrChange = 0
+    curTicker = Cells(Idx, 1)
+    QtrOpenPrice = Cells(Idx, 3)
+
+End Sub
+
+Sub AddHeaders()
+    ResultRowIdx = 0
+    ResultRowIdx = ResultRowIdx + 1
+    Cells(ResultRowIdx, 9) = "Ticker"
+    Cells(ResultRowIdx, 10) = "Quarterly Change"
+    Cells(ResultRowIdx, 11) = "Percent Change"
+    Cells(ResultRowIdx, 12) = "Total Stock Volume"
+   
+    Cells(ResultRowIdx, 16) = "Ticker"
+    Cells(ResultRowIdx, 17) = "Value"
+    Cells(ResultRowIdx + 1, 15) = "Greatest % Increase"
+    Cells(ResultRowIdx + 2, 15) = "Greatest % Decrease"
+    Cells(ResultRowIdx + 3, 15) = "Greatest Total Volume"
+End Sub
+
+
